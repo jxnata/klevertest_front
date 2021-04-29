@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Button, Form, FormGroup, Label, Input, Row, Col } from 'reactstrap'
+import React, { useEffect, useState } from 'react'
+import { Button, Form, FormGroup, Label, Input, Row, Col, CustomInput } from 'reactstrap'
 import { ToastContainer, toast } from 'react-toastify'
 import { validate } from 'bitcoin-address-validation'
 import 'react-toastify/dist/ReactToastify.css'
@@ -8,28 +8,46 @@ import api from './api'
 
 function App() {
 
-	const [confirmedBalance, setConfirmedBalance] = useState(0)
-	const [unconfirmedBalance, setUnconfirmedBalance] = useState(0)
+	const [confirmedBalance, setConfirmedBalance] = useState('')
+	const [unconfirmedBalance, setUnconfirmedBalance] = useState('')
 	const [btcAddress, setBtcAddress] = useState('')
+	const [loading, setLoading] = useState(false)
+	const [auto, setAuto] = useState(false)
+	const [intervalId, setIntervalId] = useState(false)
+
+	useEffect(() => {
+		if (auto) {
+			setLoading(true)
+			setIntervalId(setInterval(getBalance, 10000))
+		} else {
+			setLoading(false)
+			clearInterval(intervalId)
+		}
+	}, [auto])
 
 	const getBalance = e => {
-		e.preventDefault()
+		if (e) {
+			e.preventDefault()
+		}
+		setLoading(true)
 
 		if (validate(btcAddress)) {
 			api.get(`/balance/${btcAddress}`)
 				.then(result => {
-					const confirmedArray = result?.data?.filter(i => i.confirmations >= 2).map(i => parseInt(i.value))
-					const unconfirmedArray = result?.data?.filter(i => i.confirmations < 2).map(i => parseInt(i.value))
 
-					setConfirmedBalance(confirmedArray.reduce((a, b) => a + b, 0))
-					setUnconfirmedBalance(unconfirmedArray.reduce((a, b) => a + b, 0))
+					setConfirmedBalance(result?.data?.confirmed)
+					setUnconfirmedBalance(result?.data?.unconfirmed)
+					setLoading(false)
 
-					toast('Success', { type: 'success' })
+					if (!auto) {
+						toast('Success!', { type: 'success' })
+					}
 				})
 				.catch(error => {
 					toast(error.response?.data?.error, { type: 'error' })
 				})
 		} else {
+			setLoading(false)
 			toast('The BTC address is invalid!', { type: 'error' })
 		}
 	}
@@ -45,13 +63,13 @@ function App() {
 									<Col>
 										<FormGroup>
 											<Label for='confirmedBalance'>Confirmed Balance</Label>
-											<Input type='text' readOnly name='confirmedBalance' id='confirmedBalance' value={confirmedBalance.toFixed(2)} />
+											<Input type='text' readOnly name='confirmedBalance' id='confirmedBalance' value={confirmedBalance} />
 										</FormGroup>
 									</Col>
 									<Col>
 										<FormGroup>
 											<Label for='unconfirmedBalance'>Unconfirmed Balance</Label>
-											<Input type='text' readOnly name='unconfirmedBalance' id='unconfirmedBalance' value={unconfirmedBalance.toFixed(2)} />
+											<Input type='text' readOnly name='unconfirmedBalance' id='unconfirmedBalance' value={unconfirmedBalance} />
 										</FormGroup>
 									</Col>
 								</Row>
@@ -64,12 +82,23 @@ function App() {
 										id='btcAddress'
 										placeholder='Type your bitcoin address'
 										value={btcAddress}
-										onChange={text => setBtcAddress(text.target.value)}
+										onChange={e => setBtcAddress(e.target.value)}
+										disabled={loading || auto}
 									/>
 								</FormGroup>
+								{(validate(btcAddress) && confirmedBalance != '') && (
+									<CustomInput
+										type='switch'
+										id='autoSwitch'
+										label={auto ? 'Auto update balance is enabled...' : 'Auto update'}
+										htmlFor='autoSwitch'
+										checked={auto}
+										onChange={e => setAuto(e.target.checked)}
+									/>
+								)}
 								<br></br>
 								<div className='d-flex align-items-center justify-content-center'>
-									<Button size='lg' color='success'>Submit</Button>
+									<Button size='lg' color='success' disabled={loading || auto}>Submit</Button>
 								</div>
 							</Form>
 						</Col>

@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: 'https://blockbook-bitcoin.tronwallet.me/api/v2/utxo/'
+    baseURL: 'https://klever-test-jxnata.herokuapp.com'
 })
 
 export default api
